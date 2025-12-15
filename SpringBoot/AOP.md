@@ -68,7 +68,7 @@ Spring 会在运行时：
 - 在调用前后自动帮你调用 `beforeLog()` / `afterLog()`。
 
 所以你业务方法本身还是干干净净，只做业务逻辑，
- 而日志、事务、权限这些横切逻辑，全部集中由 AOP 统一管理。
+而日志、事务、权限这些横切逻辑，全部集中由 AOP 统一管理。
 
 ------
 
@@ -191,7 +191,7 @@ public Object around(ProceedingJoinPoint pjp) throws Throwable {
 
 可以记成：
 
-> **Advice = 在某个 Pointcut 对应的方法执行“之前 / 之后 / 替代”的那段实际代码。**
+> **Advice = 在某个 Pointcut（一组连接点的集合） 对应的方法执行“之前 / 之后 / 替代”的那段实际代码。**
 
 ------
 
@@ -200,7 +200,7 @@ public Object around(ProceedingJoinPoint pjp) throws Throwable {
 **是什么：**
 
 - 被 AOP 增强的那个“原始对象”，也就是你写的业务类实例：
-  - `UserServiceImpl`、`OrderServiceImpl` 之类。
+  - `UserServiceImpl`、`OrderServiceImpl` 之类。IoC容器中的Bean
 
 AOP 不会直接改变这个对象，而是：
 
@@ -1132,3 +1132,9 @@ public void handleOrder(Long orderId) { ... }
 > 本质就是：这些逻辑都属于“横切关注点”，如果写进每个业务方法会大量重复且难维护，用 AOP 把它们抽成切面，通过代理或字节码织入统一管理，让业务代码更干净、更聚焦。
 
 如果你愿意，我可以帮你针对其中一个场景（比如“统一接口日志 + 耗时监控”）写一整套从注解、切面到实际调用链的完整示例，你可以直接拿到项目里改一改就用。
+
+
+
+
+
+# 代理
