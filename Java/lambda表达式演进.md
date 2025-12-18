@@ -198,3 +198,116 @@ people.sort(Comparator.comparingInt(Person::getAge)
 
 ------
 
+
+
+
+
+# lambda表达式常见应用场景
+
+## 1) 集合处理：排序、过滤、映射、分组（配合 Stream）
+
+- 排序：
+
+```java
+list.sort((a, b) -> a.getAge() - b.getAge());
+// 或
+list.sort(Comparator.comparing(User::getAge));
+```
+
+- 过滤 + 映射：
+
+```java
+List<String> names = users.stream()
+    .filter(u -> u.isActive())
+    .map(User::getName)
+    .toList(); // 16+ 可用，8~15 用 collect(toList())
+```
+
+- 分组：
+
+```java
+Map<String, List<User>> byDept = users.stream()
+    .collect(Collectors.groupingBy(User::getDept));
+```
+
+## 2) 回调/策略模式：把“行为”当参数传（替代匿名内部类）
+
+典型：根据条件选择不同策略
+
+```java
+Function<Order, BigDecimal> pricing =
+    vip ? this::vipPrice : this::normalPrice;
+
+BigDecimal p = pricing.apply(order);
+```
+
+## 3) 事件监听 / 观察者：GUI、消息回调、Hook
+
+```java
+button.addActionListener(e -> System.out.println("clicked"));
+```
+
+在业务里对应：消息消费、状态变化通知、异步完成回调。
+
+## 4) 并发与异步：Runnable/Callable、CompletableFuture
+
+- 简化线程任务：
+
+```java
+executor.submit(() -> doWork());
+```
+
+- 异步流水线：
+
+```java
+CompletableFuture.supplyAsync(this::query)
+    .thenApply(this::convert)
+    .thenAccept(this::persist);
+```
+
+## 5) 资源包裹/模板方法：用 Lambda 把“核心逻辑”塞进模板里
+
+例如统一做：日志、耗时、异常处理、事务边界
+
+```java
+<T> T withLog(String name, Supplier<T> supplier) {
+    long t = System.currentTimeMillis();
+    try { return supplier.get(); }
+    finally { System.out.println(name + " cost=" + (System.currentTimeMillis()-t)); }
+}
+
+var r = withLog("loadUser", () -> loadUser(id));
+```
+
+## 6) Optional：避免显式 null 判断（但别滥用）
+
+```java
+String city = Optional.ofNullable(user)
+    .map(User::getAddress)
+    .map(Address::getCity)
+    .orElse("unknown");
+```
+
+## 7) Map/Cache 的惰性计算：computeIfAbsent
+
+```java
+User u = cache.computeIfAbsent(id, this::loadUser);
+```
+
+常用于缓存、对象池、分组聚合。
+
+## 8) 校验与断言：Predicate 组合
+
+```java
+Predicate<User> ok = u -> u.isActive();
+Predicate<User> adult = u -> u.getAge() >= 18;
+
+List<User> res = users.stream().filter(ok.and(adult)).toList();
+```
+
+------
+
+### 面试常用一句话总结
+
+Lambda 最常用在：**集合流水线（Stream）**、**回调/策略**、**异步编排（CompletableFuture）**、**模板封装（统一日志/事务/异常）** 这四类场景。
+
