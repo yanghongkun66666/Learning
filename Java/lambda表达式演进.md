@@ -1,3 +1,11 @@
+# 定义
+
+**本质价值是：把“行为/函数”当成数据传来传去**，从而让很多 API（尤其 Stream、并发、回调）变得非常自然。
+
+
+
+
+
 ## 0）先明确：sort( ) 里放的到底是什么？
 
 `List.sort` 需要一个 **Comparator**（函数式接口）：
@@ -234,11 +242,29 @@ Map<String, List<User>> byDept = users.stream()
 
 典型：根据条件选择不同策略
 
+只要一个方法参数类型是**函数式接口**，你就能用 lambda。
+
+常见四大函数式接口（面试必会）：
+
+- `Predicate<T>`：`T -> boolean`（筛选）
+- `Function<T,R>`：`T -> R`（转换）
+- `Consumer<T>`：`T -> void`（消费/执行）
+- `Supplier<T>`：`() -> T`（提供/延迟创建）
+
 ```java
+`Predicate<T>`：`T -> boolean`（筛选） 就是stream里面的filter需要传递的参数，需要时间的函数式接口
+
 Function<Order, BigDecimal> pricing =
     vip ? this::vipPrice : this::normalPrice;
 
 BigDecimal p = pricing.apply(order);
+
+// Consumer：forEach 里传一个“怎么处理每个元素”
+users.forEach(u -> System.out.println(u.getName()));
+
+// Supplier：延迟提供默认值
+String v = map.getOrDefault(key, defaultSupplier.get());
+
 ```
 
 ## 3) 事件监听 / 观察者：GUI、消息回调、Hook
@@ -249,7 +275,36 @@ button.addActionListener(e -> System.out.println("clicked"));
 
 在业务里对应：消息消费、状态变化通知、异步完成回调。
 
-## 4) 并发与异步：Runnable/Callable、CompletableFuture
+
+
+很多框架/工具方法会让你传一个 callback。
+
+比如：
+
+- 自定义重试 `retry(() -> callRemote())`
+- 统一异常处理 `doWithLock(() -> ...)`
+- 通用模板 `executeInTx(() -> ...)`
+
+你会看到大量这种写法：
+
+```
+runWithLog("createUser", () -> userService.create(dto));
+```
+
+这就是把“要执行的动作”用 lambda 传进去。
+
+## 4) 并发与异步：Runnable/Callable、CompletableFuture 用在并发与异步 API（线程/任务）
+
+例如 `Runnable / Callable`：
+
+```java
+new Thread(() -> doWork()).start();
+
+ExecutorService pool = Executors.newFixedThreadPool(4);
+Future<Integer> f = pool.submit(() -> 1 + 2);
+```
+
+这是 lambda 最常见的“非 Stream”使用场景之一。
 
 - 简化线程任务：
 
@@ -298,12 +353,73 @@ User u = cache.computeIfAbsent(id, this::loadUser);
 
 ## 8) 校验与断言：Predicate 组合
 
+lambda 配合 `and / or / negate`（Predicate）和 `andThen / compose`（Function）可以把规则像积木一样拼起来。
+
 ```java
 Predicate<User> ok = u -> u.isActive();
 Predicate<User> adult = u -> u.getAge() >= 18;
 
 List<User> res = users.stream().filter(ok.and(adult)).toList();
+
+Predicate<User> isAdult = u -> u.getAge() >= 18;
+Predicate<User> isRD = u -> "RD".equals(u.getDept());
+
+List<User> ans = users.stream()
+    .filter(isAdult.and(isRD))
+    .toList();
+
+
+
+
+
+Function<User, String> name = User::getName;
+Function<String, Integer> len = String::length;
+
+Function<User, Integer> nameLen = name.andThen(len);
+int l = nameLen.apply(users.get(0));
+
 ```
+
+
+
+## 9) 延迟执行与性能优化（惰性/避免无用计算）
+
+一个经典面试点：**orElse vs orElseGet**
+
+- `orElse(x)`：不管是否需要，`x` 先算出来（可能浪费）
+- `orElseGet(() -> x)`：真的为空时才执行 lambda（惰性）
+
+```
+String v = opt.orElseGet(() -> expensiveCompute());
+```
+
+这在业务里经常能省掉不必要的 DB/远程调用/大对象构造。
+
+
+
+
+
+## 10) “自定义高阶函数”：你自己写工具方法接 lambda（大厂常见封装）
+
+你可以写一个通用的模板方法，把变化的部分交给 lambda：
+
+```
+static <T> T withTimer(String name, Supplier<T> action) {
+    long s = System.currentTimeMillis();
+    try { return action.get(); }
+    finally { System.out.println(name + " cost " + (System.currentTimeMillis()-s)); }
+}
+```
+
+调用：
+
+```
+String res = withTimer("query", () -> queryFromDB());
+```
+
+这就是“把行为当参数”，非常大厂。
+
+
 
 ------
 
