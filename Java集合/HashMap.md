@@ -1,4 +1,4 @@
-## 1. HashMap 是什么
+## 1. HashMap 是什么   明天再深入学一下底层相关 多找找相关文章等资料
 
 **HashMap 是基于哈希表的 Key-Value 容器，平均 O(1) 时间完成 put/get/remove**（在 hash 均匀、负载适中时）。
 JDK8+（JDK17 同样）采用：**数组 + 链表/红黑树** 解决冲突。
