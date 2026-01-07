@@ -2,15 +2,20 @@
 
 ArrayList 底层是 Object[] 存引用，允许 null 就是允许某个槽位存空引用（0 指针），不分配对象；可以存多个 null。对 Integer 这种包装类型，数组里存的是引用（4/8 字节），对象本体在堆上（通常 16 字节左右），null 的主要风险是自动拆箱导致 NPE。
 
+底层数据结构-》时间复杂度-》使用场景
+
+当元素数量超过数组的当前容量时，数组就会自动扩容。这种实现方式让它在随机访问元素的时候效率很高，因为可以直接通过索引找到对应元素，时间复杂度是 O (1)。但在中间插入或删除元素时，就需要移动大量元素，所以时间复杂度是 O (n)。
+
 # ArrayList 是什么 定义
 
-一句话：**基于动态数组（Object[]）实现的 List**。
+一句话：**底层基于动态数组（Object[]）实现的 List**。
 
 它的核心特性：
 
 - **随机访问快**：`get(i)` / `set(i)` 是 O(1)
 - **尾部追加快**：`add(e)` 平均 O(1)，扩容时 O(n)
 - **中间插入/删除慢**：需要搬移元素，O(n)
+- **会涉及扩容操作**
 - **允许 null**   ArrayList 里某个位置的元素可以是 `null`  可以add多个null
 - **非线程安全**
 - **迭代器 fail-fast**（快速失败）
@@ -25,10 +30,10 @@ ArrayList 底层是 Object[] 存引用，允许 null 就是允许某个槽位存
 
 - `Collection` 是最顶层的集合接口之一
 - `List` **extends** `Collection`（List 是 Collection 的子接口，继承了集合接口） 
-- `ArrayList` **implements** `List`   实现了列表接口
+- `ArrayList` **implements** `List`   实现了列表接口  它实现了List接口。
 
 所以这条链是：
-**ArrayList → List → Collection**
+**ArrayList → List → Collection**  
 
 ------
 
@@ -59,8 +64,11 @@ ArrayList 底层是 Object[] 存引用，允许 null 就是允许某个槽位存
 - **组装批量入参**（比如批量更新、批量调用远程服务）
 - **中间结果缓存**（先 collect 到 list，再做分组/分页/排序）
 - **接口返回**（JSON 序列化 List）
+- 读多写少，需要随机访问的场景，优先使用ArrayList
 
 同时它也是最容易被“性能/并发/扩容”坑到的容器。
+
+arraylist是线程不安全的，线程安全可以用Collections.synchronizedList 或者 CopyOnWriteArrayList
 
 ------
 
@@ -69,7 +77,7 @@ ArrayList 底层是 Object[] 存引用，允许 null 就是允许某个槽位存
 ArrayList 最关键的 3 个成员：
 
 ```java
-transient Object[] elementData; // 真正存数据的数组（transient：自定义序列化）
+transient Object[] elementData; // 真正存数据的数组（transient：自定义序列化）  底层基于动态数组
 private int size;               // 当前元素个数（不是容量）
 protected transient int modCount; // 来自 AbstractList，用于 fail-fast
 ```
@@ -189,6 +197,9 @@ ArrayList 的底层数组容量可能比 size 大：
 
 当你 `add(e)` 时，如果放不下，会扩容。
 
+当你往ArrayList里添加元素之前，检查发现当前元素个数size等于数组的容量capacity时，就会触发扩容，如果添加之后再检查可能已经超出数组容量范围了。
+扩容的具体规则是新容量变为旧容量的1.5倍。在JDK 17里，核心逻辑就是`newCapacity = oldCapacity + (oldCapacity >> 1)`，`old >> 1`相当于`old / 2`，所以整体就是原来容量的1.5倍。不过如果新容量小于最小需要的容量`minCapacity`，那新容量就会直接等于`minCapacity`，最后通过`Arrays.copyOf`方法创建一个新数组，把旧数组的数据复制过去。
+
 ## 5.1 增长策略：1.5 倍
 
 JDK 17 的核心逻辑（简化版）：
@@ -225,7 +236,7 @@ elementData = Arrays.copyOf(elementData, newCapacity);
 
 # 6. add / get / remove 的时间复杂度（源码级理解）
 
-## 6.1 `get(index)`：O(1)
+## 6.1 get(index)：O(1)
 
 就是数组下标访问：
 
@@ -233,14 +244,14 @@ elementData = Arrays.copyOf(elementData, newCapacity);
 return (E) elementData[index];
 ```
 
-## 6.2 `add(e)` 尾插：均摊 O(1)
+## 6.2 add(e) 尾插：均摊 O(1)
 
 - 不扩容：直接 `elementData[size++] = e`
 - 扩容：O(n) 拷贝
 
 均摊 O(1) 的直觉：扩容不是每次发生，发生时一次性“买更多空间”。
 
-## 6.3 `add(index, e)`：O(n)
+## 6.3 add(index, e)：O(n)
 
 要把 index 右侧整体右移：
 
@@ -250,7 +261,7 @@ elementData[index] = e;
 size++;
 ```
 
-## 6.4 `remove(index)`：O(n)
+## 6.4 remove(index)：O(n)
 
 要把 index 右侧整体左移：
 

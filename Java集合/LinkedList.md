@@ -23,9 +23,11 @@
 
 - 任务队列（单线程/局部队列）
 - BFS、拓扑排序等算法（面试/工具逻辑）
-- 需要频繁 `addFirst/removeFirst/addLast/removeLast`
+- 需要频繁 `addFirst/removeFirst/addLast/removeLast` 才考虑使用LinkedList，它是线程不安全的，不过实际上也是`ArrayDeque`，官方推荐的。
 
-> 但注意：多线程队列一般用 `ArrayDeque`、`ConcurrentLinkedQueue`、`LinkedBlockingQueue`，而不是 LinkedList。
+> 但注意：多线程队列一般用 `ConcurrentLinkedQueue` （无锁/弱一致，吞吐好）、`LinkedBlockingQueue` （需要阻塞/限流时），或者说：**简单包一层锁**：`Collections.synchronizedDeque(new ArrayDeque<>())`、而不是使用LinkedList。
+>
+> 线程安全可以用Collections.synchronizedList 或者 CopyOnWriteArrayList
 
 ## B. 很少用于“随机访问 list”
 
@@ -37,6 +39,7 @@
 
 - `LinkedList<E>` **extends** `AbstractSequentialList<E>`
 - `implements`：`List<E>, Deque<E>, Cloneable, Serializable`
+- 它也实现了List接口
 
 关键点：
 
@@ -46,7 +49,7 @@
 
 # 4) LinkedList 的底层数据结构（JDK 17 源码核心）
 
-LinkedList 内部是双向链表节点 `Node<E>`：
+LinkedList 内部是双向链表节点 `Node<E>`： 
 
 ```java
 private static class Node<E> {
@@ -80,7 +83,13 @@ transient Node<E> last;
 
 # 5) 最核心方法：add / remove / get 的源码级逻辑
 
-## 5.1 `add(e)`（尾插）
+插入和删除节点效率较高（但也得先找到对应节点才行，好处在于不用移动元素）
+
+随机访问需要遍历链表，效率较低
+
+额外占用指针空间
+
+## 5.1 add(e)（尾插）
 
 在 LinkedList 里，`add(e)` 等价于 `linkLast(e)`：
 
@@ -104,11 +113,11 @@ void linkLast(E e) {
 
 **复杂度：O(1)**（这是它的优势之一）
 
-## 5.2 `addFirst(e)` / `addLast(e)`
+## 5.2 addFirst(e) / addLast(e)
 
 同理，都是 O(1)，只改头尾指针。
 
-## 5.3 `removeFirst()` / `removeLast()`
+## 5.3 removeFirst() / removeLast()
 
 删除头/尾也都是 O(1)，并且会把删除节点的 item/next/prev 断开帮助 GC：
 
@@ -129,7 +138,7 @@ E unlinkFirst(Node<E> f) {
 }
 ```
 
-## 5.4 `get(index)`（关键：慢！）
+## 5.4 get(index)（关键：慢！）
 
 LinkedList 的 `get(i)` 会先判断 index 靠近头还是靠近尾：
 
@@ -156,7 +165,7 @@ Node<E> node(int index) {
 
 > 面试加分：它做了“从近的一端开始走”的优化，但本质仍是线性。
 
-## 5.5 `add(index, e)` / `remove(index)`
+## 5.5 add(index, e) / remove(index)
 
 - 先 `node(index)` 找到位置（O(n)）
 - 再 link/unlink（O(1)）
